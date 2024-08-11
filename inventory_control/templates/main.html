@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+
+    <title>Учёт товара</title>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Учёт товара</h1>
+      <div class="mb-3">
+        <div class="input-group mb-3">
+          <input type="text" class="form-control" id="searchInput" placeholder="Поиск по названию">
+          <button class="btn btn-outline-secondary" type="button" id="searchButton">Поиск</button>
+        </div>
+        <div class="input-group mb-3">
+          <label class="input-group-text" for="sortLocation">Локация</label>
+          <select class="form-select" id="sortLocation">
+            <option value="">Все</option>
+            {% for location in locations %}
+              <option value="{{ location.id }}">{{ location.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addProductModal">
+          Добавить товар
+        </button>
+        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addLocationModal">
+          Добавить локацию
+        </button>
+      </div>
+      <table class="table striped">
+        <thead>
+          <tr>
+            <th>Название товара</th>
+            <th>Описание</th>
+            <th>
+              Цена
+              <span id="priceSortArrow" class="sort-arrow" data-sort="price">—</span>
+            </th>
+            <th>
+              Количество на складе
+              <span id="quantitySortArrow" class="sort-arrow" data-sort="quantity">—</span>
+            </th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody id="productTableBody">
+          {% for product in products %}
+          <tr>
+            <td>{{ product.name }}</td>
+            <td>{{ product.description }}</td>
+            <td>{{ product.price }}</td>
+            <td>
+              {% for inventory in product.inventories %}
+                {{ inventory.location.name }} — {{ inventory.quantity }} шт. <br>
+              {% endfor %}
+            </td>
+            <td>
+              <button class="btn btn-primary add-inventory" data-bs-toggle="modal" data-bs-target="#addInventoryModal" data-product-id="{{ product.id }}">Добавить на склад</button>
+              <button class="btn btn-danger remove-inventory" data-bs-toggle="modal" data-bs-target="#removeInventoryModal" data-product-id="{{ product.id }}" {% if not product.inventories %}disabled{% endif %}>Удалить со склада</button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addProductModalLabel">Добавить товар</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="productForm">
+              {{ form.csrf_token }}
+              <div class="mb-3">
+                <label for="name" class="form-label">Название</label>
+                <input type="text" class="form-control" id="name" name="name" required>
+              </div>
+              <div class="mb-3">
+                <label for="description" class="form-label">Описание</label>
+                <textarea class="form-control" id="description" name="description" required></textarea>
+              </div>
+              <div class="mb-3">
+                <label for="price" class="form-label">Цена</label>
+                <input type="number" step="0.01" class="form-control" id="price" name="price" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Сохранить</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Location Modal -->
+    <div class="modal fade" id="addLocationModal" tabindex="-1" aria-labelledby="addLocationModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addLocationModalLabel">Добавить локацию</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="locationForm">
+              {{ location_form.csrf_token }}
+              <div class="mb-3">
+                <label for="location_name" class="form-label">Название</label>
+                <input type="text" class="form-control" id="location_name" name="name" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Сохранить</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Inventory Modal -->
+    <div class="modal fade" id="addInventoryModal" tabindex="-1" aria-labelledby="addInventoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addInventoryModalLabel">Добавить на склад</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="addInventoryForm">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" id="add_product_id" name="product_id">
+              <div class="mb-3">
+                <label for="add_location_id" class="form-label">Локация</label>
+                <select class="form-select" id="add_location_id" name="location_id" required>
+                  {% for location in locations %}
+                    <option value="{{ location.id }}">{{ location.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <label for="add_quantity" class="form-label">Количество</label>
+                <input type="number" class="form-control" id="add_quantity" name="quantity" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Сохранить</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Remove Inventory Modal -->
+    <div class="modal fade" id="removeInventoryModal" tabindex="-1" aria-labelledby="removeInventoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="removeInventoryModalLabel">Удалить со склада</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="removeInventoryForm" method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" id="remove_product_id" name="product_id">
+              <div class="mb-3">
+                <label for="remove_location_id" class="form-label">Локация</label>
+                <select class="form-select" id="remove_location_id" name="location_id" required>
+                  <!-- Options will be populated dynamically -->
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary">Удалить со склада</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Optional JavaScript; choose one of the two! -->
+
+    <!-- Option 1: Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        let currentSort = { field: null, order: null };
+
+        document.getElementById('productForm').addEventListener('submit', function(event) {
+          event.preventDefault();
+          const formData = new FormData(this);
+          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+          formData.append('csrf_token', csrfToken);
+    
+          fetch('/new_product', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              performSearch();
+              var myModal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
+              myModal.hide();
+            } else {
+              alert('Ошибка: ' + data.message);
+              if (data.errors) {
+                for (const [field, errors] of Object.entries(data.errors)) {
+                  alert(`Field: ${field}, Errors: ${errors.join(', ')}`);
+                }
+              }
+            }
+          });
+        });
+    
+        document.getElementById('locationForm').addEventListener('submit', function(event) {
+          event.preventDefault();
+          const formData = new FormData(this);
+          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+          formData.append('csrf_token', csrfToken);
+    
+          fetch('/new_location', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              const locationSelect = document.getElementById('add_location_id');
+              const newOption = document.createElement('option');
+              newOption.value = data.location.id;
+              newOption.textContent = data.location.name;
+              locationSelect.appendChild(newOption);
+              var myModal = bootstrap.Modal.getInstance(document.getElementById('addLocationModal'));
+              myModal.hide();
+            }
+          });
+        });
+    
+        document.getElementById('addInventoryForm').addEventListener('submit', function(event) {
+          event.preventDefault();
+          const formData = new FormData(this);
+          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+          formData.append('csrf_token', csrfToken);
+    
+          fetch('/add_inventory', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              var myModal = bootstrap.Modal.getInstance(document.getElementById('addInventoryModal'));
+              myModal.hide();
+              // Update the table dynamically
+              location.reload();
+            }
+          });
+        });
+    
+        document.getElementById('removeInventoryForm').addEventListener('submit', function(event) {
+          event.preventDefault();
+          const formData = new FormData(this);
+          const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+          formData.append('csrf_token', csrfToken);
+    
+          fetch('/remove_inventory', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              var myModal = bootstrap.Modal.getInstance(document.getElementById('removeInventoryModal'));
+              myModal.hide();
+              // Update the table dynamically
+              location.reload();
+            }
+          });
+        });
+    
+        document.getElementById('searchButton').addEventListener('click', performSearch);
+
+        function performSearch() {
+          const searchTerm = document.getElementById('searchInput').value;
+          const locationId = document.getElementById('sortLocation').value;
+          fetch(`/search?term=${searchTerm}&location_id=${locationId}&sort_field=${currentSort.field}&sort_order=${currentSort.order}`)
+            .then(response => response.json())
+            .then(data => {
+              const productTableBody = document.getElementById('productTableBody');
+              productTableBody.innerHTML = '';
+              data.products.forEach(product => {
+                const newRow = productTableBody.insertRow();
+                newRow.innerHTML = `
+                  <td>${product.name}</td>
+                  <td>${product.description}</td>
+                  <td>${product.price}</td>
+                  <td>${product.inventories.map(inventory => `${inventory.location.name} — ${inventory.quantity} шт.<br>`).join('')}</td>
+                  <td>
+                    <button class="btn btn-primary add-inventory" data-bs-toggle="modal" data-bs-target="#addInventoryModal" data-product-id="${product.id}">Добавить на склад</button>
+                    <button class="btn btn-danger remove-inventory" data-bs-toggle="modal" data-bs-target="#removeInventoryModal" data-product-id="${product.id}" ${product.inventories.length > 0 ? '' : 'disabled'}>Удалить со склада</button>
+                  </td>
+                `;
+              });
+            });
+        }
+    
+        document.querySelectorAll('.sort-arrow').forEach(arrow => {
+          arrow.addEventListener('click', function() {
+            const field = this.getAttribute('data-sort');
+            if (currentSort.field === field) {
+              currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+              currentSort.field = field;
+              currentSort.order = 'asc';
+            }
+            this.textContent = currentSort.order === 'asc' ? '▲' : '▼';
+            document.getElementById('searchButton').click();
+          });
+        });
+    
+        document.addEventListener('click', function(event) {
+          if (event.target.classList.contains('add-inventory')) {
+            const productId = event.target.getAttribute('data-product-id');
+            document.getElementById('add_product_id').value = productId;
+          } else if (event.target.classList.contains('remove-inventory')) {
+            const productId = event.target.getAttribute('data-product-id');
+            document.getElementById('remove_product_id').value = productId;
+
+            // Fetch locations with quantities for the selected product
+            fetch(`/locations_with_quantity?product_id=${productId}`)
+              .then(response => response.json())
+              .then(data => {
+                const locationSelect = document.getElementById('remove_location_id');
+                locationSelect.innerHTML = '';
+                if (data.locations.length > 0) {
+                  data.locations.forEach(location => {
+                    const option = document.createElement('option');
+                    option.value = location.id;
+                    option.textContent = `${location.name} — ${location.quantity} шт.`;
+                    locationSelect.appendChild(option);
+                  });
+                  // Enable the button and show the modal
+                  event.target.disabled = false;
+                  const myModal = new bootstrap.Modal(document.getElementById('removeInventoryModal'));
+                  myModal.show();
+                } else {
+                  // Disable the button if no locations with quantities are found
+                  event.target.disabled = true;
+                }
+              });
+          }
+        });
+    
+        // Add event listeners for modal close buttons
+        const modals = ['addInventoryModal', 'removeInventoryModal', 'addProductModal', 'addLocationModal'];
+        modals.forEach(modalId => {
+          const modal = document.getElementById(modalId);
+          const closeButton = modal.querySelector('.btn-close');
+          closeButton.addEventListener('click', function() {
+            const bootstrapModal = bootstrap.Modal.getInstance(modal);
+            if (bootstrapModal) {
+              bootstrapModal.hide();
+            }
+          });
+    
+          // Add event listener for hidden.bs.modal event
+          modal.addEventListener('hidden.bs.modal', function() {
+            document.body.classList.remove('modal-open');
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+              backdrop.remove();
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
